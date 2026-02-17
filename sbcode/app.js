@@ -6,12 +6,10 @@ function buildPreviewHtml(userCode) {
   const threeVersion = "0.159.0";
   const threeModule = `https://cdn.jsdelivr.net/npm/three@${threeVersion}/build/three.module.js`;
   const orbitControls = `https://cdn.jsdelivr.net/npm/three@${threeVersion}/examples/jsm/controls/OrbitControls.js`;
-  const bvhLoader = `https://cdn.jsdelivr.net/npm/three@${threeVersion}/examples/jsm/loaders/BVHLoader.js`;
 
   const prelude = `
 import * as THREE from "three";
 import { OrbitControls } from "${orbitControls}";
-import { BVHLoader } from "${bvhLoader}";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -30,18 +28,6 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.25));
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(3, 5, 2);
 scene.add(light);
-
-// Params editables
-// El usuario puede hacer: __SB.params.rotSpeed = 2.0; etc.
-const params = {
-  rotSpeed: 0.8,
-  animSpeed: 1.0,
-  scale: 1.0,
-  scrub: 0.0,
-  pause: false,
-  showSkeleton: true
-};
-window.__SB = { params };
 
 let update = () => {};
 
@@ -87,11 +73,11 @@ function animate() {
 
   <script type="importmap">
     {
-      "imports": {
+    "imports": {
         "three": "${threeModule}"
-      }
     }
-  </script>
+    }
+    </script>
 </head>
 <body>
   <canvas id="c"></canvas>
@@ -120,67 +106,18 @@ function animate() {
 </html>`;
 }
 
-const defaultCode = `// BVH starter (pirouette.bvh)
-// Requiere: /assets/pirouette.bvh en tu server local
-
-let mixer = null;
-let root = null;
-let skeletonHelper = null;
-let action = null;
+const defaultCode = `// Template estilo SBCode (1 cubo)
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(),
+  new THREE.MeshNormalMaterial({ wireframe: true })
+);
+scene.add(cube);
 
 const clock = new THREE.Clock();
-
-scene.add(new THREE.GridHelper(400, 10));
-camera.position.set(0, 200, 300);
-camera.lookAt(0, 120, 0);
-
-const P = window.__SB.params;
-
-/////////////////////////////////////////////
-// Cambia aquí valores por defecto si quieres:
-P.animSpeed = 1.0;
-P.scale = 1.0;
-P.pause = false;
-P.showSkeleton = true;
-// P.rotSpeed = 0.0;
-// P.scrub = 0.0;
-/////////////////////////////////////////////
-
-const loader = new BVHLoader();
-loader.load("/assets/pirouette.bvh", (result) => {
-  root = result.skeleton.bones[0];
-
-  skeletonHelper = new THREE.SkeletonHelper(root);
-  scene.add(root);
-  scene.add(skeletonHelper);
-
-  mixer = new THREE.AnimationMixer(root);
-  action = mixer.clipAction(result.clip);
-  action.play();
-}, undefined, (err) => console.error("BVH load error:", err));
-
 update = () => {
-  const dt = clock.getDelta();
-
-  if (mixer && action) {
-    if (!P.pause) {
-      mixer.timeScale = P.animSpeed;
-      mixer.update(dt);
-    }
-
-    // Si quieres que P.scrub mande, descomenta:
-    // action.paused = true;
-    // action.time = action.getClip().duration * P.scrub;
-  }
-
-  if (root) {
-    root.rotation.y += dt * P.rotSpeed;
-    root.scale.setScalar(P.scale);
-  }
-
-  if (skeletonHelper) {
-    skeletonHelper.visible = P.showSkeleton;
-  }
+  const delta = clock.getDelta();
+  cube.rotation.x += delta;
+  cube.rotation.y += delta;
 };
 `;
 
