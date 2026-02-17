@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SBCode-lite (local)</title>
+  <title>SBCode Editor (local)</title>
   <style>
     html, body { height:100%; margin:0; background:#000; overflow:hidden; }
     #app { height:100%; width:100%; position:relative; }
@@ -79,8 +79,36 @@
       tab-size:2;
     }
 
-    #overlay.minimized{ height:auto; }
+    #overlay.minimized{ min-height: 0;}
     #overlay.minimized #code{ display:none; }
+    #overlay.minimized #resizeHandle{display:none;}
+
+    /* límites del panel */
+    #overlay{
+    min-width: 320px;
+    min-height: 220px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    }
+
+    /* scroll dentro del textarea si es largo */
+    #code{
+    overflow: auto;
+    white-space: pre;
+    }
+
+    /* handle de resize (esquina inferior derecha) */
+    #resizeHandle{
+    position:absolute;
+    right:8px;
+    bottom:8px;
+    width:14px;
+    height:14px;
+    cursor:nwse-resize;
+    border-right:2px solid rgba(255,255,255,0.35);
+    border-bottom:2px solid rgba(255,255,255,0.35);
+    opacity: 0.9;
+    }
   </style>
 </head>
 <body>
@@ -91,9 +119,10 @@
       <div id="bar">
         <button id="run">Run (Ctrl+S)</button>
         <button id="toggle">Hide</button>
-        <span id="hint">JS only → THREE, scene, camera, renderer…</span>
+        <span id="hint">SBCode Editor Local</span>
       </div>
       <textarea id="code" spellcheck="false"></textarea>
+      <div id="resizeHandle"></div>
     </div>
   </div>
 

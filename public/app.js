@@ -9,7 +9,7 @@ function buildPreviewHtml(userCode) {
 
   const prelude = `
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { OrbitControls } from "${orbitControls}";
 
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -74,8 +74,7 @@ function animate() {
   <script type="importmap">
     {
     "imports": {
-        "three": "${threeModule}",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@${threeVersion}/examples/jsm/"
+        "three": "${threeModule}"
     }
     }
     </script>
@@ -128,7 +127,9 @@ const runBtn = document.getElementById("run");
 const toggleBtn = document.getElementById("toggle");
 const overlay = document.getElementById("overlay");
 
-codeEl.value = localStorage.getItem("sbcode_lite_code") || defaultCode;
+// codeEl.value = localStorage.getItem("sbcode_lite_code") || defaultCode;
+localStorage.removeItem("sbcode_lite_code");
+codeEl.value = defaultCode;
 
 function run() {
   localStorage.setItem("sbcode_lite_code", codeEl.value);
@@ -144,9 +145,37 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+let prevSize = null; // { width, height }
+
 toggleBtn.addEventListener("click", () => {
-  overlay.classList.toggle("minimized");
-  toggleBtn.textContent = overlay.classList.contains("minimized") ? "Show" : "Hide";
+  const minimized = overlay.classList.toggle("minimized");
+
+  if (minimized) {
+    // guarda tamaño actual (incluye el que vino de resize)
+    prevSize = {
+      width: overlay.style.width || "",
+      height: overlay.style.height || "",
+    };
+
+    // mantener el ancho actual, pero colapsar altura a la cabecera
+    overlay.style.height = bar.offsetHeight + "px";
+
+    // (opcional) si quieres fijar también el ancho actual por si estaba en %
+    // overlay.style.width = overlay.offsetWidth + "px";
+
+    toggleBtn.textContent = "Show";
+  } else {
+    // restaurar tamaño previo
+    if (prevSize) {
+      overlay.style.width = prevSize.width;
+      overlay.style.height = prevSize.height;
+    } else {
+      overlay.style.width = "";
+      overlay.style.height = "";
+    }
+
+    toggleBtn.textContent = "Hide";
+  }
 });
 
 // --- DRAG del overlay (tipo Hydra) ---
@@ -186,6 +215,41 @@ window.addEventListener("pointermove", (e) => {
 
 window.addEventListener("pointerup", () => {
   dragging = false;
+});
+
+// --- RESIZE del overlay (esquina) ---
+const resizeHandle = document.getElementById("resizeHandle");
+
+let resizing = false;
+let startW = 0, startH = 0, startRX = 0, startRY = 0;
+
+resizeHandle.addEventListener("pointerdown", (e) => {
+  resizing = true;
+  resizeHandle.setPointerCapture(e.pointerId);
+
+  startW = overlay.offsetWidth;
+  startH = overlay.offsetHeight;
+  startRX = e.clientX;
+  startRY = e.clientY;
+
+  e.preventDefault();
+});
+
+window.addEventListener("pointermove", (e) => {
+  if (!resizing) return;
+
+  const newW = startW + (e.clientX - startRX);
+  const newH = startH + (e.clientY - startRY);
+
+  const w = Math.max(320, Math.min(window.innerWidth - 16, newW));
+  const h = Math.max(220, Math.min(window.innerHeight - 16, newH));
+
+  overlay.style.width = `${w}px`;
+  overlay.style.height = `${h}px`;
+});
+
+window.addEventListener("pointerup", () => {
+  resizing = false;
 });
 
 run();
