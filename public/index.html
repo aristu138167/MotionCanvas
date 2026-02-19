@@ -34,10 +34,15 @@
       border-radius:10px;
       overflow:hidden;
 
-      background:rgba(0,0,0,0.55);
+      /* background:rgba(0,0,0,0.55);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); */
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      box-shadow: none;
+      /* border: none; */
     }
 
     #bar{
@@ -46,7 +51,8 @@
       align-items:center;
       padding:10px 10px;
       border-bottom:1px solid rgba(255,255,255,0.10);
-      background:rgba(0,0,0,0.45);
+      /* background:rgba(0,0,0,0.45); */
+      background: transparent;
       user-select:none;
     }
 
@@ -74,6 +80,7 @@
       resize:none;
       padding:12px 12px;
       background:transparent;
+      text-shadow: 0 0 4px black;
       color:#e8e8e8;
       font:13px/1.45 Consolas, monospace;
       tab-size:2;

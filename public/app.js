@@ -20,8 +20,9 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
 
-const camera = new THREE.PerspectiveCamera(60, 2, 0.1, 1000);
-camera.position.set(3, 2, 5);
+const camera = new THREE.PerspectiveCamera(60, 2, 0.1, 2000);
+camera.position.set(0, 200, 450);
+camera.lookAt(0, 120, 0);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -31,19 +32,9 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(3, 5, 2);
 scene.add(light);
 
-// Params editables
-// El usuario puede hacer: __SB.params.rotSpeed = 2.0; etc.
-const params = {
-  rotSpeed: 0,
-  animSpeed: 1.0,
-  scale: 1.0,
-  scrub: 0.0,
-  pause: false,
-  showSkeleton: true
-};
-window.__SB = { params };
-
-let update = () => {};
+// ================= HYDRA-LIKE BVH API (globals) =================
+${bvhApi}
+// ================================================================
 
 function resize() {
   const w = canvas.clientWidth;
@@ -58,7 +49,7 @@ function resize() {
 function animate() {
   resize();
   controls.update();
-  update();
+  SB._tick();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
@@ -120,68 +111,172 @@ function animate() {
 </html>`;
 }
 
-const defaultCode = `// BVH starter (pirouette.bvh)
-// Requiere: /assets/pirouette.bvh en tu server local
+const defaultCode = `
+  clear();
+  grid(400, 10);
+  cam(0, 200, 450, 0, 120, 0);
 
-let mixer = null;
-let root = null;
-let skeletonHelper = null;
-let action = null;
+  /// Motion  Capture Files
+  bvh("A_test").x(0).scale(1).speed(1).play();
+  bvh("B_test").x(-30).scale(1).speed(1).play();
+  bvh("C_test").x(30).scale(1).speed(1).play();
+  bvh("pirouette").x(50).scale(1).speed(1).play();
+  bvh("ejercicios_rehabilitacion").x(-50).z(-80).scale(1).speed(1).play();
 
-const clock = new THREE.Clock();
+  /// Global
+  speed(1.0);
+  skeleton(true);
+  scale(1.0);
+  // rot(0.2);
+  // pause(true);
+`;
+const bvhApi = `
+  const clock = new THREE.Clock();
+  const rigs = [];   // { root, helper, mixer, action, opts }
+  const mixers = []; // AnimationMixers
 
-scene.add(new THREE.GridHelper(400, 10));
-camera.position.set(0, 200, 300);
-camera.lookAt(0, 120, 0);
+  const SB = {
+    params: {
+      speed: 1.0,
+      pause: false,
+      showSkeleton: true,
+      globalScale: 1.0,
+      rotSpeed: 0.0
+    },
 
-const P = window.__SB.params;
+    grid(size=400, div=10) {
+      scene.add(new THREE.GridHelper(size, div));
+      return SB;
+    },
 
-/////////////////////////////////////////////
-// Cambia aquí valores por defecto si quieres:
-P.animSpeed = 1.0;
-P.scale = 1.0;
-P.pause = false;
-P.showSkeleton = true;
-// P.rotSpeed = 0.0;
-// P.scrub = 0.0;
-/////////////////////////////////////////////
+    cam(x=0, y=200, z=450, lx=0, ly=120, lz=0) {
+      camera.position.set(x, y, z);
+      camera.lookAt(lx, ly, lz);
+      return SB;
+    },
 
-const loader = new BVHLoader();
-loader.load("/assets/pirouette.bvh", (result) => {
-  root = result.skeleton.bones[0];
+    clear() {
+      for (const r of rigs) {
+        if (r.action) r.action.stop();
+        if (r.mixer) r.mixer.stopAllAction();
+        if (r.helper) scene.remove(r.helper);
+        if (r.root) scene.remove(r.root);
+      }
+      rigs.length = 0;
+      mixers.length = 0;
+      return SB;
+    },
 
-  skeletonHelper = new THREE.SkeletonHelper(root);
-  scene.add(root);
-  scene.add(skeletonHelper);
+    bvh(fileOrUrl) {
+      const url = fileOrUrl.startsWith("http") ? fileOrUrl : "/assets/" + fileOrUrl + ".bvh";
 
-  mixer = new THREE.AnimationMixer(root);
-  action = mixer.clipAction(result.clip);
-  action.play();
-}, undefined, (err) => console.error("BVH load error:", err));
+      const handle = {
+        _url: url,
+        _x: 0, _y: 0, _z: 0,
+        _scale: null,
+        _rotY: 0,
+        _showSkeleton: null,
+        _speed: null,
 
-update = () => {
-  const dt = clock.getDelta();
+        x(v){ this._x=v; return this; },
+        y(v){ this._y=v; return this; },
+        z(v){ this._z=v; return this; },
+        pos(x,y,z){ this._x=x; this._y=y; this._z=z; return this; },
+        scale(s){ this._scale=s; return this; },
+        rotY(r){ this._rotY=r; return this; },
+        skeleton(v){ this._showSkeleton=v; return this; },
+        speed(v){ this._speed=v; return this; },
 
-  if (mixer && action) {
-    if (!P.pause) {
-      mixer.timeScale = P.animSpeed;
-      mixer.update(dt);
+        play() {
+          const loader = new BVHLoader();
+          loader.load(
+            this._url,
+            (result) => {
+              const root = result.skeleton.bones[0];
+
+              const group = new THREE.Group();
+              group.position.set(this._x, this._y, this._z);
+              group.rotation.y = this._rotY;
+
+              const helper = new THREE.SkeletonHelper(root);
+              helper.skeleton = result.skeleton;
+
+              group.add(root);
+              group.add(helper);
+
+              const sc = (this._scale ?? SB.params.globalScale);
+              group.scale.setScalar(sc);
+
+              helper.visible = (this._showSkeleton ?? SB.params.showSkeleton);
+
+              scene.add(group);
+
+              const mixer = new THREE.AnimationMixer(root);
+              const action = mixer.clipAction(result.clip);
+              action.play();
+
+              rigs.push({
+                root, helper, mixer, action,
+                opts: {
+                  speed: (this._speed ?? 1.0),
+                  showSkeleton: (this._showSkeleton ?? null),
+                  scale: (this._scale ?? null)
+                }
+              });
+              mixers.push(mixer);
+            },
+            undefined,
+            (err) => { throw new Error("BVH load error (" + this._url + "): " + (err?.message || err)); }
+          );
+          return SB;
+        }
+      };
+
+      return handle;
+    },
+
+    speed(v){ SB.params.speed = v; return SB; },
+    pause(v=true){ SB.params.pause = v; return SB; },
+    skeleton(v=true){ SB.params.showSkeleton = v; return SB; },
+    scale(v){ SB.params.globalScale = v; return SB; },
+    rot(v){ SB.params.rotSpeed = v; return SB; },
+
+    _tick() {
+      const dt = clock.getDelta();
+
+      for (const r of rigs) {
+        if (r.root) {
+          r.root.rotation.y += dt * SB.params.rotSpeed;
+          const s = (r.opts.scale ?? SB.params.globalScale);
+          r.root.scale.setScalar(s);
+        }
+        if (r.helper) {
+          const vis = (r.opts.showSkeleton ?? SB.params.showSkeleton);
+          r.helper.visible = vis;
+        }
+      }
+
+      if (!SB.params.pause) {
+        for (let i=0;i<mixers.length;i++){
+          const r = rigs[i];
+          const localSpeed = r?.opts?.speed ?? 1.0;
+          mixers[i].timeScale = SB.params.speed * localSpeed;
+          mixers[i].update(dt);
+        }
+      }
     }
+  };
 
-    // Si quieres que P.scrub mande, descomenta:
-    // action.paused = true;
-    // action.time = action.getClip().duration * P.scrub;
-  }
-
-  if (root) {
-    root.rotation.y += dt * P.rotSpeed;
-    root.scale.setScalar(P.scale);
-  }
-
-  if (skeletonHelper) {
-    skeletonHelper.visible = P.showSkeleton;
-  }
-};
+  // Exponer funciones globales tipo Hydra
+  window.clear = () => SB.clear();
+  window.grid = (a,b) => SB.grid(a,b);
+  window.cam = (x,y,z,lx,ly,lz) => SB.cam(x,y,z,lx,ly,lz);
+  window.bvh = (fileOrUrl) => SB.bvh(fileOrUrl);
+  window.speed = (v) => SB.speed(v);
+  window.pause = (v=true) => SB.pause(v);
+  window.skeleton = (v=true) => SB.skeleton(v);
+  window.scale = (v) => SB.scale(v);
+  window.rot = (v) => SB.rot(v);
 `;
 
 const iframe = document.getElementById("preview");
@@ -241,7 +336,7 @@ toggleBtn.addEventListener("click", () => {
   }
 });
 
-// --- DRAG del overlay (tipo Hydra) ---
+// --- DRAG del overlay---
 let dragging = false;
 let startX = 0, startY = 0;
 let startLeft = 0, startTop = 0;
