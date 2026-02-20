@@ -1,5 +1,18 @@
 function escapeForScript(code) {
-  return code.replace(/<\/script>/gi, "<\\/script>");
+  let safeCode = code.replace(/<\/script>/gi, "<\\/script>");
+  
+  // Truco para el Live-Coding: Convertir asignaciones directas en variables globales
+  // Ej: "bailarin1 = bvh()" se transforma internamente en "window.bailarin1 = bvh()"
+  const lines = safeCode.split('\n');
+  const processed = lines.map(line => {
+    // Si la línea ya empieza por const, let o var, no la tocamos
+    if (/^\s*(const|let|var)\s/.test(line)) return line;
+    
+    // Si la línea es una asignación (variable = valor), le ponemos "window." delante
+    return line.replace(/^\s*([a-zA-Z_$][0-9a-zA-Z_$]*)\s*=(?!=)/, 'window.$1 =');
+  });
+  
+  return processed.join('\n');
 }
 
 function buildPreviewHtml(userCode) {
@@ -113,29 +126,21 @@ function animate() {
 
 const defaultCode = `clear();
 grid(400, 10);
-cam(0, 200, 450, 0, 120, 0);
+cam(0, 200, 450, 0, 100, 0);
 
-/// Motion  Capture Files
-bvh("A_test").x(0).scale(1).speed(1).play();
-bvh("B_test").x(-30).scale(1).speed(1).play();
-bvh("C_test").x(30).scale(1).speed(1).play();
-bvh("pirouette").x(50).scale(1).speed(1).reverse(true).play();
-bvh("ejercicios_rehabilitacion").x(-50).z(-80).scale(1).speed(1).play();
-
-/// Global
-speed(1.0);
-skeleton(true);
-scale(1.0);
-// reverse(true);
-// rot(0.2);
-// pause(true);
+bailarin1 = bvh("pirouette").x(-80).color("#ff0000").trail(100000).play();
+duplicate(bailarin1).x(0).color("#ffffff").play();
+duplicate(bailarin1).x(80).color("#0000ff").play();
+duplicate(bailarin1).x(-80).z(-80).color("#00ffff").play();
+duplicate(bailarin1).x(0).z(-80).color("#00ff00").play();
+duplicate(bailarin1).x(80).z(-80).color("#ffff00").play();
 `;
 const bvhApi = `
   const clock = new THREE.Clock();
   const rigs = [];   
   const mixers = []; 
-  const activeTrails = [];
-  let frameCount = 0;
+  const activeTrails = []; 
+  let frameCount = 0;      
 
   const SB = {
     params: {
@@ -146,7 +151,8 @@ const bvhApi = `
       rotSpeed: 0.0,
       reverse: false,
       color: null,
-      trail: 0
+      trail: 0,
+      delay: 0
     },
 
     grid(size=400, div=10) {
@@ -167,7 +173,6 @@ const bvhApi = `
         if (r.helper) scene.remove(r.helper);
         if (r.root) scene.remove(r.root);
       }
-      // Limpiar trails al resetear
       for (const t of activeTrails) {
         scene.remove(t.mesh);
         t.mesh.geometry.dispose();
@@ -193,6 +198,7 @@ const bvhApi = `
         _reverse: null,
         _color: null,
         _trail: null,
+        _delay: null,
 
         x(v){ this._x=v; return this; },
         y(v){ this._y=v; return this; },
@@ -205,6 +211,7 @@ const bvhApi = `
         reverse(v=true){ this._reverse=v; return this; },
         color(c){ this._color=c; return this; },
         trail(length){ this._trail=length; return this; },
+        delay(s){ this._delay=s; return this; },
 
         play() {
           const loader = new BVHLoader();
@@ -248,13 +255,15 @@ const bvhApi = `
               rigs.push({
                 root, helper, mixer, action,
                 clip: result.clip,
+                timeAlive: 0, 
                 opts: {
                   speed: (this._speed ?? 1.0),
                   showSkeleton: (this._showSkeleton ?? null),
                   scale: (this._scale ?? null),
                   reverse: this._reverse,
                   color: this._color,
-                  trail: this._trail
+                  trail: this._trail,
+                  delay: this._delay 
                 }
               });
               mixers.push(mixer);
@@ -271,7 +280,7 @@ const bvhApi = `
 
     duplicate(originalHandle) {
       if (!originalHandle || !originalHandle._rawFile) {
-        throw new Error("duplicate() necesita un objeto BVH válido.");
+        throw new Error("duplicate() necesita una variable BVH válida (ej: bailarin1).");
       }
       const newHandle = this.bvh(originalHandle._rawFile);
       newHandle._x = originalHandle._x;
@@ -284,6 +293,7 @@ const bvhApi = `
       newHandle._reverse = originalHandle._reverse;
       newHandle._color = originalHandle._color;
       newHandle._trail = originalHandle._trail;
+      newHandle._delay = originalHandle._delay; 
       return newHandle;
     },
 
@@ -295,6 +305,7 @@ const bvhApi = `
     reverse(v=true){ SB.params.reverse = v; return SB; },
     color(c){ SB.params.color = c; return SB; },
     trail(v){ SB.params.trail = v; return SB; },
+    delay(s){ SB.params.delay = s; return SB; }, 
 
     _tick() {
       const dt = clock.getDelta();
@@ -311,11 +322,11 @@ const bvhApi = `
           r.helper.visible = vis;
         }
 
-        // --- TRAIL (Fantasmas) ---
         const trailLen = r.opts.trail ?? SB.params.trail;
-        if (!SB.params.pause && trailLen > 0 && frameCount % 3 === 0 && r.helper) {
+        const delayTime = r.opts.delay ?? SB.params.delay;
+
+        if (!SB.params.pause && trailLen > 0 && frameCount % 3 === 0 && r.helper && r.timeAlive >= delayTime) {
           const snapGeom = r.helper.geometry.clone();
-          
           snapGeom.applyMatrix4(r.helper.matrixWorld); 
 
           const snapMat = r.helper.material.clone();
@@ -333,7 +344,6 @@ const bvhApi = `
         }
       }
 
-      // --- DEGRADAR Y BORRAR FANTASMAS ---
       for (let i = activeTrails.length - 1; i >= 0; i--) {
         const t = activeTrails[i];
         t.life -= t.decay;
@@ -341,7 +351,7 @@ const bvhApi = `
 
         if (t.life <= 0) {
           scene.remove(t.mesh);
-          t.mesh.geometry.dispose();
+          t.mesh.geometry.dispose(); 
           t.mesh.material.dispose();
           activeTrails.splice(i, 1);
         }
@@ -350,6 +360,12 @@ const bvhApi = `
       if (!SB.params.pause) {
         for (let i=0;i<mixers.length;i++){
           const r = rigs[i];
+          const delayTime = r.opts?.delay ?? SB.params.delay;
+
+          r.timeAlive += dt;
+
+          if (r.timeAlive < delayTime) continue;
+
           const localSpeed = r?.opts?.speed ?? 1.0;
           const isReversed = r.opts?.reverse ?? SB.params.reverse;
           const dir = isReversed ? -1 : 1;
@@ -379,6 +395,7 @@ const bvhApi = `
   window.reverse = (v) => SB.reverse(v);
   window.color = (c) => SB.color(c);
   window.trail = (l) => SB.trail(l);
+  window.delay = (s) => SB.delay(s);
   window.duplicate = (h) => SB.duplicate(h);
 `;
 
