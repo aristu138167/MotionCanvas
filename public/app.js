@@ -132,8 +132,10 @@ scale(1.0);
 `;
 const bvhApi = `
   const clock = new THREE.Clock();
-  const rigs = [];   // { root, helper, mixer, action, clip, opts }
-  const mixers = []; // AnimationMixers
+  const rigs = [];   
+  const mixers = []; 
+  const activeTrails = [];
+  let frameCount = 0;
 
   const SB = {
     params: {
@@ -144,6 +146,7 @@ const bvhApi = `
       rotSpeed: 0.0,
       reverse: false,
       color: null,
+      trail: 0
     },
 
     grid(size=400, div=10) {
@@ -164,6 +167,13 @@ const bvhApi = `
         if (r.helper) scene.remove(r.helper);
         if (r.root) scene.remove(r.root);
       }
+      // Limpiar trails al resetear
+      for (const t of activeTrails) {
+        scene.remove(t.mesh);
+        t.mesh.geometry.dispose();
+        t.mesh.material.dispose();
+      }
+      activeTrails.length = 0;
       rigs.length = 0;
       mixers.length = 0;
       return SB;
@@ -173,7 +183,7 @@ const bvhApi = `
       const url = fileOrUrl.startsWith("http") ? fileOrUrl : "/assets/" + fileOrUrl + ".bvh";
 
       const handle = {
-      _rawFile: fileOrUrl,
+        _rawFile: fileOrUrl,
         _url: url,
         _x: 0, _y: 0, _z: 0,
         _scale: null,
@@ -182,6 +192,7 @@ const bvhApi = `
         _speed: null,
         _reverse: null,
         _color: null,
+        _trail: null,
 
         x(v){ this._x=v; return this; },
         y(v){ this._y=v; return this; },
@@ -193,6 +204,7 @@ const bvhApi = `
         speed(v){ this._speed=v; return this; },
         reverse(v=true){ this._reverse=v; return this; },
         color(c){ this._color=c; return this; },
+        trail(length){ this._trail=length; return this; },
 
         play() {
           const loader = new BVHLoader();
@@ -242,6 +254,7 @@ const bvhApi = `
                   scale: (this._scale ?? null),
                   reverse: this._reverse,
                   color: this._color,
+                  trail: this._trail
                 }
               });
               mixers.push(mixer);
@@ -255,15 +268,12 @@ const bvhApi = `
 
       return handle;
     },
+
     duplicate(originalHandle) {
       if (!originalHandle || !originalHandle._rawFile) {
         throw new Error("duplicate() necesita un objeto BVH válido.");
       }
-
-      // Creamos la nueva instancia usando el nombre original
       const newHandle = this.bvh(originalHandle._rawFile);
-
-      // Copiamos todo su estado interno
       newHandle._x = originalHandle._x;
       newHandle._y = originalHandle._y;
       newHandle._z = originalHandle._z;
@@ -273,7 +283,7 @@ const bvhApi = `
       newHandle._speed = originalHandle._speed;
       newHandle._reverse = originalHandle._reverse;
       newHandle._color = originalHandle._color;
-
+      newHandle._trail = originalHandle._trail;
       return newHandle;
     },
 
@@ -284,9 +294,11 @@ const bvhApi = `
     rot(v){ SB.params.rotSpeed = v; return SB; },
     reverse(v=true){ SB.params.reverse = v; return SB; },
     color(c){ SB.params.color = c; return SB; },
+    trail(v){ SB.params.trail = v; return SB; },
 
     _tick() {
       const dt = clock.getDelta();
+      frameCount++;
 
       for (const r of rigs) {
         if (r.root) {
@@ -298,13 +310,47 @@ const bvhApi = `
           const vis = (r.opts.showSkeleton ?? SB.params.showSkeleton);
           r.helper.visible = vis;
         }
+
+        // --- TRAIL (Fantasmas) ---
+        const trailLen = r.opts.trail ?? SB.params.trail;
+        if (!SB.params.pause && trailLen > 0 && frameCount % 3 === 0 && r.helper) {
+          const snapGeom = r.helper.geometry.clone();
+          
+          snapGeom.applyMatrix4(r.helper.matrixWorld); 
+
+          const snapMat = r.helper.material.clone();
+          snapMat.transparent = true;
+          snapMat.opacity = 0.6; 
+
+          const snapLine = new THREE.LineSegments(snapGeom, snapMat);
+          scene.add(snapLine); 
+
+          activeTrails.push({
+            mesh: snapLine,
+            life: 0.6,
+            decay: 0.6 / trailLen
+          });
+        }
+      }
+
+      // --- DEGRADAR Y BORRAR FANTASMAS ---
+      for (let i = activeTrails.length - 1; i >= 0; i--) {
+        const t = activeTrails[i];
+        t.life -= t.decay;
+        t.mesh.material.opacity = t.life;
+
+        if (t.life <= 0) {
+          scene.remove(t.mesh);
+          t.mesh.geometry.dispose();
+          t.mesh.material.dispose();
+          activeTrails.splice(i, 1);
+        }
       }
 
       if (!SB.params.pause) {
         for (let i=0;i<mixers.length;i++){
           const r = rigs[i];
           const localSpeed = r?.opts?.speed ?? 1.0;
-          
           const isReversed = r.opts?.reverse ?? SB.params.reverse;
           const dir = isReversed ? -1 : 1;
           
@@ -321,7 +367,6 @@ const bvhApi = `
     }
   };
 
-  // Exponer funciones globales tipo Hydra
   window.clear = () => SB.clear();
   window.grid = (a,b) => SB.grid(a,b);
   window.cam = (x,y,z,lx,ly,lz) => SB.cam(x,y,z,lx,ly,lz);
@@ -332,8 +377,9 @@ const bvhApi = `
   window.scale = (v) => SB.scale(v);
   window.rot = (v) => SB.rot(v);
   window.reverse = (v) => SB.reverse(v);
-  window.duplicate = (h) => SB.duplicate(h);
   window.color = (c) => SB.color(c);
+  window.trail = (l) => SB.trail(l);
+  window.duplicate = (h) => SB.duplicate(h);
 `;
 
 const iframe = document.getElementById("preview");
