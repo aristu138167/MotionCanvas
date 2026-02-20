@@ -142,7 +142,8 @@ const bvhApi = `
       showSkeleton: true,
       globalScale: 1.0,
       rotSpeed: 0.0,
-      reverse: false
+      reverse: false,
+      color: null,
     },
 
     grid(size=400, div=10) {
@@ -179,7 +180,8 @@ const bvhApi = `
         _rotY: 0,
         _showSkeleton: null,
         _speed: null,
-        _reverse: null, // <-- Ahora es null para poder leer el global
+        _reverse: null,
+        _color: null,
 
         x(v){ this._x=v; return this; },
         y(v){ this._y=v; return this; },
@@ -190,6 +192,7 @@ const bvhApi = `
         skeleton(v){ this._showSkeleton=v; return this; },
         speed(v){ this._speed=v; return this; },
         reverse(v=true){ this._reverse=v; return this; },
+        color(c){ this._color=c; return this; },
 
         play() {
           const loader = new BVHLoader();
@@ -204,6 +207,12 @@ const bvhApi = `
 
               const helper = new THREE.SkeletonHelper(root);
               helper.skeleton = result.skeleton;
+
+              const col = this._color ?? SB.params.color;
+              if (col) {
+                helper.material.vertexColors = false;
+                helper.material.color.set(col);
+              }
 
               group.add(root);
               group.add(helper);
@@ -226,12 +235,13 @@ const bvhApi = `
 
               rigs.push({
                 root, helper, mixer, action,
-                clip: result.clip, // <-- Guardamos el clip para el _tick
+                clip: result.clip,
                 opts: {
                   speed: (this._speed ?? 1.0),
                   showSkeleton: (this._showSkeleton ?? null),
                   scale: (this._scale ?? null),
-                  reverse: this._reverse
+                  reverse: this._reverse,
+                  color: this._color,
                 }
               });
               mixers.push(mixer);
@@ -262,6 +272,7 @@ const bvhApi = `
       newHandle._showSkeleton = originalHandle._showSkeleton;
       newHandle._speed = originalHandle._speed;
       newHandle._reverse = originalHandle._reverse;
+      newHandle._color = originalHandle._color;
 
       return newHandle;
     },
@@ -272,6 +283,7 @@ const bvhApi = `
     scale(v){ SB.params.globalScale = v; return SB; },
     rot(v){ SB.params.rotSpeed = v; return SB; },
     reverse(v=true){ SB.params.reverse = v; return SB; },
+    color(c){ SB.params.color = c; return SB; },
 
     _tick() {
       const dt = clock.getDelta();
@@ -321,6 +333,7 @@ const bvhApi = `
   window.rot = (v) => SB.rot(v);
   window.reverse = (v) => SB.reverse(v);
   window.duplicate = (h) => SB.duplicate(h);
+  window.color = (c) => SB.color(c);
 `;
 
 const iframe = document.getElementById("preview");
