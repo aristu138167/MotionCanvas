@@ -119,7 +119,7 @@ window.addEventListener("pointermove", (e) => {
   const dx = e.clientX - startX;
   const dy = e.clientY - startY;
   const left = Math.max(8, Math.min(window.innerWidth - overlay.offsetWidth - 8, startLeft + dx));
-  const top  = Math.max(8, Math.min(window.innerHeight - overlay.offsetHeight - 8, startTop + dy));
+  const top = Math.max(8, Math.min(window.innerHeight - overlay.offsetHeight - 8, startTop + dy));
   overlay.style.left = `${left}px`;
   overlay.style.top = `${top}px`;
 });
