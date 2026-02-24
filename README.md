@@ -15,7 +15,7 @@ From that moment on, their own body becomes the raw material for the artwork. Th
 ## Installation
 
 ```bash
-git clone https://github.com/aristu138167/https://github.com/aristu138167/MotionCanvas.git
+git clone https://github.com/aristu138167/MotionCanvas.git
 cd MotionCanvas
 npm install
 npm start

@@ -239,5 +239,45 @@ for (let i = 0; i < puntosNucleo; i++) {
 
 // Rotación lenta para apreciar la tridimensionalidad
 rot(0.1);`
+  },
+  {
+    name: "El Tesseract de Almas",
+    code: `clear();
+bg("#000105");
+cam(800, 600, 800, 0, 0, 0);
+
+// Usamos un esqueleto invisible para que solo el rastro de luz defina la forma
+let molde = bvh("pirouette").pos(0, -2000, 0).skeleton(false).play();
+
+let resolucion = 6; // 6x6x6 = 216 bailarines sincronizados
+let tamaño = 400;
+
+for (let x = 0; x < resolucion; x++) {
+  for (let y = 0; y < resolucion; y++) {
+    for (let z = 0; z < resolucion; z++) {
+      
+      // Calculamos la posición en un cubo 3D centrado
+      let posX = (x / (resolucion - 1) - 0.5) * tamaño;
+      let posY = (y / (resolucion - 1) - 0.5) * tamaño;
+      let posZ = (z / (resolucion - 1) - 0.5) * tamaño;
+
+      // Distancia al centro para crear efectos esféricos dentro del cubo
+      let dist = Math.sqrt(posX*posX + posY*posY + posZ*posZ);
+      
+      // Color: del cian eléctrico en los bordes al blanco nuclear en el centro
+      let matiz = 180 + (dist / tamaño) * 100;
+
+      duplicate(molde)
+        .pos(posX, posY, posZ)
+        .color(\`hsl(\${matiz}, 100%, 70%)\`)
+        .trail(40)
+        .delay(dist * 0.005) 
+        .speed(0.4 + (dist * 0.001))
+        .play();
+    }
   }
+}
+  
+rot(0.2);`
+  },
 ];
