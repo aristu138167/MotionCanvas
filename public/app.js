@@ -32,7 +32,7 @@ function buildPreviewHtml(userCode) {
 <body>
   <canvas id="c"></canvas>
   <div id="err"></div>
-  <script type="module" src="./bvhApi.js?v=${Date.now()}"></script>
+  <script type="module" src="./bvhApi.js"></script>
   <script type="module">
     const errBox = document.getElementById("err");
     function showErr(msg) { errBox.style.display = "block"; errBox.textContent += "\\n" + msg; }
@@ -67,7 +67,7 @@ function run() {
 
 runBtn.addEventListener("click", run);
 window.addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+  if (((e.ctrlKey || e.metaKey) && e.key === "Enter") || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s")) {
     e.preventDefault();
     run();
   }
@@ -76,7 +76,10 @@ window.addEventListener("keydown", (e) => {
 // --- BOTÓN RANDOM ---
 if (randomBtn) {
   randomBtn.addEventListener("click", () => {
-    const randomIndex = Math.floor(Math.random() * examples.length);
+    let randomIndex = Math.floor(Math.random() * examples.length);
+    if (randomIndex === 0) {
+      randomIndex = Math.floor(Math.random() * (examples.length - 1)) + 1;
+    }
     const selected = examples[randomIndex];
     const codeWithTitle = `///// ${selected.name} /////\n${selected.code}`;
     codeEl.value = codeWithTitle;
@@ -172,7 +175,7 @@ window.addEventListener("pointerup", () => {
 // --- INICIO: CARGAR CÓDIGO POR DEFECTO Y EJECUTAR ---
 function init() {
   const defaultExample = examples[0];
-  const codeWithTitle = `// --- ${defaultExample.name} ---\n${defaultExample.code}`;
+  const codeWithTitle = `///// ${defaultExample.name} /////\n${defaultExample.code}`;
   codeEl.value = codeWithTitle;
   run();
 }

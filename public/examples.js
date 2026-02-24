@@ -1,7 +1,26 @@
 export const examples = [
-    {
-        name: "Animación Base (Default)",
-        code: `clear();
+  {
+    name: "Animación Base (Default)",
+    code: `clear();
+grid(400, 10);
+cam(0, 200, 450, 0, 120, 0);
+
+/// Archivos de Captura de Movimiento
+bvh("A_test").x(0).scale(1).speed(1).play();
+bvh("B_test").x(-60).scale(1).speed(1).play();
+bvh("C_test").x(60).scale(1).speed(1).play();
+bvh("pirouette").x(100).scale(1).speed(1).play();
+bvh("ejercicios_rehabilitacion").x(-100).z(-160).scale(1).speed(1).play();
+
+/// Controles Globales
+speed(1.0);
+skeleton(true);
+scale(1.0);
+// rot(0.05);`
+  },
+  {
+    name: "Color Movements",
+    code: `clear();
 cam(0, 200, 450, 0, 100, 0);
 
 bailarin1 = bvh("pirouette").x(-160).color("#ff0000").trail(100).play();
@@ -18,10 +37,10 @@ duplicate(bailarin4).reverse().play();
 duplicate(bailarin5).reverse().play();
 duplicate(bailarin6).reverse().play();
 rot(0.1)`
-    },
-    {
-        name: "El Hiperboloide de Neón",
-        code: `clear();
+  },
+  {
+    name: "El Hiperboloide de Neón",
+    code: `clear();
 bg("#020005");
 cam(0, 400, 1100, 0, 200, 0);
 
@@ -48,10 +67,10 @@ for (let i = 0; i < cantidad; i++) {
     .play();
 }
 rot(0.04);`
-    },
-    {
-        name: "Círculo de Vigilancia",
-        code: `clear();
+  },
+  {
+    name: "Círculo de Vigilancia",
+    code: `clear();
 bg("#050505");
 cam(0, 400, 600, 0, 100, 0);
 
@@ -74,10 +93,10 @@ for (let i = 0; i < cantidad; i++) {
     .play();
 }
 rot(0.02);`
-    },
-    {
-        name: "ADN Gigante",
-        code: `clear();
+  },
+  {
+    name: "ADN Gigante",
+    code: `clear();
 bg("#00050a");
 cam(600, 400, 600, 0, 300, 0);
 
@@ -105,10 +124,10 @@ for (let i = 0; i < pasos; i++) {
     .play();
 }
 rot(0.05);`
-    },
-    {
-        name: "La Onda de Frecuencia",
-        code: `clear();
+  },
+  {
+    name: "La Onda de Frecuencia",
+    code: `clear();
 bg("black");
 cam(0, 300, 600, 0, 100, 0);
 
@@ -138,10 +157,10 @@ for (let i = 0; i < puntos; i++) {
 }
 
 rot(0.04);`
-    },
-    {
-        name: "El Hiper-Túnel",
-        code: `clear();
+  },
+  {
+    name: "El Hiper-Túnel",
+    code: `clear();
 bg("black");
 // Cámara en el origen (0,0,50), mirando hacia el fondo del túnel (-Z)
 cam(0, 0, 50, 0, 0, -1000);
@@ -181,10 +200,10 @@ for (let i = 0; i < numAnillos; i++) {
 
 // Aquí el rot() queda genial, hace que las paredes del túnel parezcan vivas
 rot(0.2);`
-    },
-    {
-        name: "La Esfera de Fibonacci",
-        code: `clear();
+  },
+  {
+    name: "La Esfera de Fibonacci",
+    code: `clear();
 bg("#020207");
 cam(0, 0, 1200, 0, 0, 0);
 
@@ -224,5 +243,5 @@ for (let i = 0; i < cantidad; i++) {
 }
 
 rot(0.1);`
-    }
+  }
 ];

@@ -22,6 +22,8 @@ const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(3, 5, 2);
 scene.add(light);
 
+THREE.Cache.enabled = true;
+
 // --- MOTOR BVH ---
 const clock = new THREE.Clock();
 const rigs = [];
@@ -140,7 +142,7 @@ const SB = {
 
       const trailLen = r.opts.trail ?? SB.params.trail;
       const delayTime = r.opts.delay ?? SB.params.delay;
-      if (!SB.params.pause && trailLen > 0 && frameCount % 3 === 0 && r.helper && r.timeAlive >= delayTime) {
+      if (!SB.params.pause && trailLen > 0 && frameCount % 6 === 0 && r.helper && r.timeAlive >= delayTime) {
         const snapGeom = r.helper.geometry.clone(); snapGeom.applyMatrix4(r.helper.matrixWorld);
         const snapMat = r.helper.material.clone(); snapMat.transparent = true; snapMat.opacity = 0.6;
         const snapLine = new THREE.LineSegments(snapGeom, snapMat); scene.add(snapLine);
@@ -156,12 +158,22 @@ const SB = {
     if (!SB.params.pause) {
       for (let i = 0; i < mixers.length; i++) {
         const r = rigs[i]; const delayTime = r.opts?.delay ?? SB.params.delay;
+
+        const tiempoAnterior = r.timeAlive;
         r.timeAlive += dt;
+
         if (r.timeAlive < delayTime) continue;
+
+        let tiempoActivo = dt;
+        if (tiempoAnterior < delayTime) {
+          tiempoActivo = r.timeAlive - delayTime;
+        }
+
         const localSpeed = r?.opts?.speed ?? 1.0; const isReversed = r.opts?.reverse ?? SB.params.reverse;
         mixers[i].timeScale = SB.params.speed * localSpeed * (isReversed ? -1 : 1);
         if (isReversed && r.action && r.clip) { if (r.action.time <= 0.0001) r.action.time = r.clip.duration; }
-        mixers[i].update(dt);
+
+        mixers[i].update(tiempoActivo);
       }
     }
   }
