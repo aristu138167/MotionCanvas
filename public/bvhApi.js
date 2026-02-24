@@ -79,10 +79,11 @@ const SB = {
   bvh(fileOrUrl) {
     const url = fileOrUrl.startsWith("http") ? fileOrUrl : "/assets/" + fileOrUrl + ".bvh";
     const handle = {
-      _rawFile: fileOrUrl, _url: url, _x: 0, _y: 0, _z: 0, _scale: null, _rotY: 0, _showSkeleton: null, _speed: null, _reverse: null, _color: null, _trail: null, _delay: null,
+      _rawFile: fileOrUrl, _url: url, _x: 0, _y: 0, _z: 0, _rotX: 0, _rotY: 0, _rotZ: 0, _scale: null, _showSkeleton: null, _speed: null, _reverse: null, _color: null, _trail: null, _delay: null,
       x(v) { this._x = v; return this; }, y(v) { this._y = v; return this; }, z(v) { this._z = v; return this; },
-      pos(x, y, z) { this._x = x; this._y = y; this._z = z; return this; }, scale(s) { this._scale = s; return this; },
-      rotY(r) { this._rotY = r; return this; }, skeleton(v) { this._showSkeleton = v; return this; },
+      pos(x, y, z) { this._x = x; this._y = y; this._z = z; return this; },
+      rotX(r) { this._rotX = r; return this; }, rotY(r) { this._rotY = r; return this; }, rotZ(r) { this._rotZ = r; return this; },
+      scale(s) { this._scale = s; return this; }, skeleton(v) { this._showSkeleton = v; return this; },
       speed(v) { this._speed = v; return this; }, reverse(v = true) { this._reverse = v; return this; },
       color(c) { this._color = c; return this; }, trail(length) { this._trail = length; return this; }, delay(s) { this._delay = s; return this; },
 
@@ -101,7 +102,9 @@ const SB = {
 
           // 2. Pivot para rotación exclusiva
           const pivot = new THREE.Group();
+          pivot.rotation.x = this._rotX;
           pivot.rotation.y = this._rotY;
+          pivot.rotation.z = this._rotZ;
 
           pivot.add(root);
           group.add(pivot);
@@ -126,7 +129,7 @@ const SB = {
 
           rigs.push({
             group, pivot, root, helper, mixer, action, clip: result.clip, timeAlive: 0,
-            opts: { rotY: this._rotY, speed: (this._speed ?? 1.0), showSkeleton: (this._showSkeleton ?? null), scale: (this._scale ?? null), reverse: this._reverse, color: this._color, trail: this._trail, delay: this._delay }
+            opts: { rotX: this._rotX, rotY: this._rotY, rotZ: this._rotZ, speed: (this._speed ?? 1.0), showSkeleton: (this._showSkeleton ?? null), scale: (this._scale ?? null), reverse: this._reverse, color: this._color, trail: this._trail, delay: this._delay }
           });
           mixers.push(mixer);
         }, undefined, (err) => { throw new Error("BVH load error (" + this._url + "): " + (err?.message || err)); });
