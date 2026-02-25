@@ -77,7 +77,7 @@ const SB = {
   },
 
   bvh(fileOrUrl) {
-    const url = fileOrUrl.startsWith("http") ? fileOrUrl : "/assets/" + fileOrUrl + ".bvh";
+    const url = fileOrUrl.startsWith("http") ? fileOrUrl : "./assets/" + fileOrUrl + ".bvh";
     const handle = {
       _rawFile: fileOrUrl, _url: url, _x: 0, _y: 0, _z: 0, _rotX: 0, _rotY: 0, _rotZ: 0, _scale: null, _showSkeleton: null, _speed: null, _reverse: null, _color: null, _trail: null, _delay: null,
       x(v) { this._x = v; return this; }, y(v) { this._y = v; return this; }, z(v) { this._z = v; return this; },
