@@ -62,9 +62,37 @@ cameraAI.start();
 
 // Definimos qué puntos se conectan con cuáles para dibujar el monigote
 const POSE_CONNECTIONS = [
-  [11, 12], [11, 13], [13, 15], [12, 14], [14, 16], // Brazos y hombros
-  [11, 23], [12, 24], [23, 24],                   // Torso
-  [23, 25], [24, 26], [25, 27], [26, 28]           // Piernas
+  // ESTRUCTURA CENTRAL (Torso)
+  [11, 12], // Hombros
+  [23, 24], // Caderas
+  [11, 23], // Lateral Izquierdo
+  [12, 24], // Lateral Derecho
+
+  // BRAZO IZQUIERDO
+  [11, 13], // Hombro a Codo
+  [13, 15], // Codo a Muñeca
+  [15, 17], [17, 19], [19, 15], // Palma/Nudillos
+  [15, 21], // Pulgar
+
+  // BRAZO DERECHO
+  [12, 14], // Hombro a Codo
+  [14, 16], // Codo a Muñeca
+  [16, 18], [18, 20], [20, 16], // Palma/Nudillos
+  [16, 22], // Pulgar
+
+  // PIERNA IZQUIERDA
+  [23, 25], // Cadera a Rodilla
+  [25, 27], // Rodilla a Tobillo
+  [27, 29], [29, 31], [31, 27], // Pie (Triángulo de apoyo)
+
+  // PIERNA DERECHA
+  [24, 26], // Cadera a Rodilla
+  [26, 28], // Rodilla a Tobillo
+  [28, 30], [30, 32], [32, 28], // Pie (Triángulo de apoyo)
+
+  // CABEZA (Simplificada para que no distraiga pero dé dirección)
+  [0, 11], [0, 12], // Nariz conectada a hombros para ver cuello
+  [7, 8]    // Conexión entre orejas para dar ancho a la cabeza
 ];
 
 const SB = {
