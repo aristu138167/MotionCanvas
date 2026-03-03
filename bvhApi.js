@@ -80,6 +80,9 @@ const SB = {
     const url = fileOrUrl.startsWith("http") ? fileOrUrl : "./assets/" + fileOrUrl + ".bvh";
     const handle = {
       _rawFile: fileOrUrl, _url: url, _x: 0, _y: 0, _z: 0, _rotX: 0, _rotY: 0, _rotZ: 0, _scale: null, _showSkeleton: null, _speed: null, _reverse: null, _color: null, _trail: null, _delay: null,
+
+      _isPlaying: false, // NUEVO: Por defecto nace congelado
+
       x(v) { this._x = v; return this; }, y(v) { this._y = v; return this; }, z(v) { this._z = v; return this; },
       pos(x, y, z) { this._x = x; this._y = y; this._z = z; return this; },
       rotX(r) { this._rotX = r; return this; }, rotY(r) { this._rotY = r; return this; }, rotZ(r) { this._rotZ = r; return this; },
@@ -87,64 +90,75 @@ const SB = {
       speed(v) { this._speed = v; return this; }, reverse(v = true) { this._reverse = v; return this; },
       color(c) { this._color = c; return this; }, trail(length) { this._trail = length; return this; }, delay(s) { this._delay = s; return this; },
 
+      // NUEVO: El play ahora descongela la línea de tiempo
       play() {
-        const myRunId = runId;
-
-        const loader = new BVHLoader();
-        loader.load(this._url, (result) => {
-          if (myRunId !== runId) return;
-
-          const root = result.skeleton.bones[0];
-
-          // 1. Grupo maestro para posición
-          const group = new THREE.Group();
-          group.position.set(this._x, this._y, this._z);
-
-          // 2. Pivot para rotación exclusiva
-          const pivot = new THREE.Group();
-          pivot.rotation.x = this._rotX;
-          pivot.rotation.y = this._rotY;
-          pivot.rotation.z = this._rotZ;
-
-          pivot.add(root);
-          group.add(pivot);
-
-          const sc = (this._scale ?? SB.params.globalScale);
-          group.scale.setScalar(sc);
-          scene.add(group);
-
-          // 3. El helper a la escena para evitar bugs
-          const helper = new THREE.SkeletonHelper(root);
-          helper.skeleton = result.skeleton;
-          const col = this._color ?? SB.params.color;
-          if (col) { helper.material.vertexColors = false; helper.material.color.set(col); }
-          helper.visible = (this._showSkeleton ?? SB.params.showSkeleton);
-          scene.add(helper);
-
-          const mixer = new THREE.AnimationMixer(root);
-          const action = mixer.clipAction(result.clip); action.play();
-
-          const isReversed = this._reverse ?? SB.params.reverse;
-          if (isReversed) { action.time = result.clip.duration; }
-
-          rigs.push({
-            group, pivot, root, helper, mixer, action, clip: result.clip, timeAlive: 0,
-            opts: { rotX: this._rotX, rotY: this._rotY, rotZ: this._rotZ, speed: (this._speed ?? 1.0), showSkeleton: (this._showSkeleton ?? null), scale: (this._scale ?? null), reverse: this._reverse, color: this._color, trail: this._trail, delay: this._delay }
-          });
-          mixers.push(mixer);
-        }, undefined, (err) => { throw new Error("BVH load error (" + this._url + "): " + (err?.message || err)); });
+        this._isPlaying = true;
+        // Si ya cargó en escena, lo despausamos al vuelo
+        const rig = rigs.find(r => r.handle === this);
+        if (rig && rig.action) rig.action.paused = false;
         return this;
       }
     };
+
+    // Auto-carga la geometría, pero respeta el estado de _isPlaying
+    const myRunId = runId;
+    setTimeout(() => {
+      const loader = new BVHLoader();
+      loader.load(handle._url, (result) => {
+        if (myRunId !== runId) return;
+
+        const root = result.skeleton.bones[0];
+
+        const group = new THREE.Group();
+        group.position.set(handle._x, handle._y, handle._z);
+
+        const pivot = new THREE.Group();
+        pivot.rotation.set(handle._rotX, handle._rotY, handle._rotZ);
+        pivot.add(root); group.add(pivot);
+
+        const sc = (handle._scale ?? SB.params.globalScale);
+        group.scale.setScalar(sc); scene.add(group);
+
+        const helper = new THREE.SkeletonHelper(root);
+        helper.skeleton = result.skeleton;
+        const col = handle._color ?? SB.params.color;
+        if (col) { helper.material.vertexColors = false; helper.material.color.set(col); }
+        helper.visible = (handle._showSkeleton ?? SB.params.showSkeleton);
+        scene.add(helper);
+
+        const mixer = new THREE.AnimationMixer(root);
+        const action = mixer.clipAction(result.clip);
+        action.play(); // Inicia el setup interno de Three.js
+
+        // MAGIA: Si no tiene .play(), lo pausamos en el fotograma 1
+        if (!handle._isPlaying) {
+          action.paused = true;
+        }
+
+        const isReversed = handle._reverse ?? SB.params.reverse;
+        if (isReversed) { action.time = result.clip.duration; }
+
+        rigs.push({
+          handle, // Guardamos la firma para poder despausarlo después
+          group, pivot, root, helper, mixer, action, clip: result.clip, timeAlive: 0,
+          opts: { rotX: handle._rotX, rotY: handle._rotY, rotZ: handle._rotZ, speed: (handle._speed ?? 1.0), showSkeleton: (handle._showSkeleton ?? null), scale: (handle._scale ?? null), reverse: handle._reverse, color: handle._color, trail: handle._trail, delay: handle._delay }
+        });
+        mixers.push(mixer);
+      }, undefined, (err) => { throw new Error("BVH load error (" + handle._url + "): " + (err?.message || err)); });
+    }, 0);
+
     return handle;
   },
 
   duplicate(originalHandle) {
     if (!originalHandle || !originalHandle._rawFile) throw new Error("duplicate() necesita una variable.");
     const newHandle = this.bvh(originalHandle._rawFile);
-    // Optimización: Copiamos todos los datos privados de un solo golpe
-    const keys = ["_x", "_y", "_z", "_scale", "_rotY", "_showSkeleton", "_speed", "_reverse", "_color", "_trail", "_delay"];
+    const keys = ["_x", "_y", "_z", "_scale", "_rotX", "_rotY", "_rotZ", "_showSkeleton", "_speed", "_reverse", "_color", "_trail", "_delay"];
     keys.forEach(k => newHandle[k] = originalHandle[k]);
+
+    // Si el original se estaba moviendo, la copia también
+    if (originalHandle._isPlaying) newHandle.play();
+
     return newHandle;
   },
 

@@ -5,7 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-  <title>MoveCode Editor (local)</title>
+  <title>Gestural</title>
   <style>
     html,
     body {
@@ -47,12 +47,6 @@
       border-radius: 10px;
       overflow: hidden;
 
-      /* TOTALEMNTE TRANSPARENTE */
-      /* background: transparent;
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      box-shadow: none; */
-
       /* TRANSLUCIDO */
       background: rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(1px);
@@ -65,14 +59,14 @@
       align-items: center;
       padding: 10px 10px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.10);
-      /* background:rgba(0,0,0,0.45); */
       background: transparent;
       user-select: none;
     }
 
     #run,
     #toggle,
-    #randomBtn {
+    #randomBtn,
+    #globalPauseBtn {
       padding: 6px 10px;
       cursor: pointer;
       border-radius: 8px;
@@ -82,7 +76,9 @@
     }
 
     #run:hover,
-    #toggle:hover {
+    #toggle:hover,
+    #randomBtn:hover,
+    #globalPauseBtn:hover {
       background: rgba(255, 255, 255, 0.10);
     }
 
@@ -104,35 +100,33 @@
       color: #e8e8e8;
       font: 13px/1.45 Consolas, monospace;
       tab-size: 2;
+      overflow: auto;
+      white-space: pre;
     }
 
     #overlay.minimized {
       min-height: 0;
     }
 
-    #overlay.minimized #code {
-      display: none;
-    }
-
+    #overlay.minimized #code,
     #overlay.minimized #resizeHandle {
       display: none;
     }
 
-    /* límites del panel */
     #overlay {
       min-width: 320px;
       min-height: 220px;
       max-width: calc(100vw - 16px);
       max-height: calc(100vh - 16px);
+      pointer-events: none;
     }
 
-    /* scroll dentro del textarea si es largo */
-    #code {
-      overflow: auto;
-      white-space: pre;
+    #bar,
+    #code,
+    #resizeHandle {
+      pointer-events: auto;
     }
 
-    /* handle de resize (esquina inferior derecha) */
     #resizeHandle {
       position: absolute;
       right: 8px;
@@ -143,18 +137,6 @@
       border-right: 2px solid rgba(255, 255, 255, 0.35);
       border-bottom: 2px solid rgba(255, 255, 255, 0.35);
       opacity: 0.9;
-    }
-
-    /* Hacemos que la caja principal sea "fantasma" para el ratón */
-    #overlay {
-      pointer-events: none;
-    }
-
-    /* Le devolvemos la interacción a los elementos que sí tocamos */
-    #bar,
-    #code,
-    #resizeHandle {
-      pointer-events: auto;
     }
 
     #loader {
@@ -170,11 +152,139 @@
       border-radius: 8px;
       border: 1px solid #00ffff;
       display: none;
-      /* Oculto por defecto */
       pointer-events: none;
-      /* Para que no estorbe a los clics */
       z-index: 9999;
     }
+
+    /* --- NUEVO CSS: BANDEJA DE RECOMENDACIONES --- */
+    #bvh-drawer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: rgba(15, 15, 15, 0.85);
+      backdrop-filter: blur(10px);
+      color: white;
+      z-index: 1000;
+      transform: translateY(100%);
+      /* El cajón está oculto por debajo */
+      transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      font-family: sans-serif;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 20px;
+    }
+
+    #bvh-drawer.abierto {
+      transform: translateY(0);
+    }
+
+    /* LA NUEVA PESTAÑA / BOTÓN */
+    #drawer-toggle {
+      position: absolute;
+      top: -30px;
+      /* Hace que asome 30px por encima del cajón oculto */
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 30px;
+      background: rgba(15, 15, 15, 0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: none;
+      /* Para que se fusione visualmente con el cajón */
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #aaaaaa;
+      transition: all 0.2s;
+    }
+
+    #drawer-toggle:hover {
+      color: #00ffcc;
+      background: rgba(30, 30, 30, 0.9);
+    }
+
+    .drawer-header {
+      padding: 10px 20px;
+      font-size: 14px;
+      color: #aaaaaa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .drawer-carousel {
+      display: flex;
+      gap: 15px;
+      padding: 10px 20px 10px 20px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #555 transparent;
+    }
+
+    .bvh-item {
+      flex: 0 0 auto;
+      width: 160px;
+      height: 90px;
+      background: #222;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+      user-select: none;
+    }
+
+    .bvh-item {
+      flex: 0 0 auto;
+      width: 160px;
+      height: 90px;
+      background: #222;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+      user-select: none;
+
+      /* --- NUEVO: Evita que el texto toque los bordes --- */
+      padding: 10px;
+      box-sizing: border-box;
+      /* Hace que el padding no engorde la caja */
+      text-align: center;
+      /* Centra el texto */
+    }
+
+    .bvh-item:hover {
+      background: #333;
+      border-color: #00ffcc;
+      transform: scale(1.05);
+    }
+
+    .bvh-item span {
+      font-size: 14px;
+      /* Un pelín más pequeño para que quepa mejor */
+      font-weight: bold;
+      pointer-events: none;
+
+      /* --- NUEVO: Magia para nombres hiperlargos --- */
+      width: 100%;
+      overflow-wrap: break-word;
+      /* Rompe la palabra si es más ancha que la caja */
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      /* Máximo de 3 líneas */
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      /* Oculta lo que sobra y pone "..." */
+    }
+
+    /* ------------------------------------------- */
   </style>
 </head>
 
@@ -187,7 +297,8 @@
       <div id="bar">
         <button id="run">Run (Ctrl+Enter)</button>
         <button id="toggle">Hide</button>
-        <button id="randomBtn" style="cursor:pointer; margin-right:5px;">
+        <button id="globalPauseBtn" style="cursor:pointer;">Pause</button>
+        <button id="randomBtn" style="cursor:pointer; margin-right:5px; display: none;">
           <i class="fas fa-random"></i> Random
         </button>
       </div>
@@ -196,7 +307,121 @@
     </div>
   </div>
 
+  <div id="trigger-zona-inferior"></div>
+  <div id="bvh-drawer">
+    <div id="drawer-toggle">
+      <i class="fas fa-chevron-up"></i>
+    </div>
+
+    <div class="drawer-header">
+      <span>Animaciones Disponibles</span>
+    </div>
+    <div class="drawer-carousel" id="bvh-list">
+    </div>
+  </div>
+
   <script type="module" src="./main.js"></script>
+
+  <script type="module">
+    document.addEventListener("DOMContentLoaded", async () => {
+      const drawer = document.getElementById('bvh-drawer');
+      const toggleBtn = document.getElementById('drawer-toggle');
+      const toggleIcon = toggleBtn.querySelector('i');
+      const bvhList = document.getElementById('bvh-list');
+      const textareaCode = document.getElementById('code');
+      const iframePreview = document.getElementById('preview');
+
+      let animacionesDisponibles = [];
+
+      try {
+        // 1. EL TRUCO: Pedimos al servidor local que nos lea la carpeta
+        const response = await fetch('./assets/');
+        const html = await response.text();
+
+        // 2. Convertimos la respuesta en un documento que podamos buscar
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const enlaces = Array.from(doc.querySelectorAll('a'));
+
+        // 3. Filtramos solo los archivos .bvh y limpiamos el nombre a lo bestia
+        animacionesDisponibles = enlaces
+          .map(a => a.getAttribute('href') || a.textContent) // Pillamos el enlace
+          .filter(texto => texto.includes('.bvh'))           // Nos quedamos solo con los .bvh
+          .map(ruta => {
+            // Coge "cualquier/ruta/rara/assets/pirouette.bvh", lo corta por las "/" 
+            // y se queda solo con "pirouette.bvh". Luego le quita la extensión.
+            return ruta.split('/').pop().replace('.bvh', '');
+          });
+
+      } catch (error) {
+        console.warn("Tu servidor no permite listar carpetas. Usando array de seguridad.", error);
+        animacionesDisponibles = ["pirouette"]; // Fallback por si falla
+      }
+
+      // Si la carpeta está vacía, avisamos
+      if (animacionesDisponibles.length === 0) {
+        bvhList.innerHTML = `<span style="padding: 20px; color: #ff5555;">No se encontraron archivos .bvh en /assets/</span>`;
+        return;
+      }
+
+      // 4. Generar el carrusel dinámicamente con los archivos encontrados
+      animacionesDisponibles.forEach(nombre => {
+        const btn = document.createElement('div');
+        btn.className = 'bvh-item';
+        btn.innerHTML = `<span>${nombre}</span>`;
+
+        btn.addEventListener('click', () => {
+          const nuevoCodigo = `clear();\nbg("#050505");\ngrid(800, 20);\nbvh("${nombre}").color("#ffffff").play();`;
+          textareaCode.value = nuevoCodigo;
+
+          if (iframePreview.contentWindow) {
+            iframePreview.contentWindow.postMessage({ type: 'execute', code: nuevoCodigo }, '*');
+          }
+
+          // CERRAR BANDEJA AL SELECCIONAR 
+          // drawer.classList.remove('abierto');
+          // toggleIcon.classList.remove('fa-chevron-down');
+          // toggleIcon.classList.add('fa-chevron-up');
+        });
+
+        bvhList.appendChild(btn);
+      });
+
+      // 5. Comportamiento de la pestaña
+      toggleBtn.addEventListener('click', () => {
+        drawer.classList.toggle('abierto');
+        if (drawer.classList.contains('abierto')) {
+          toggleIcon.classList.remove('fa-chevron-up');
+          toggleIcon.classList.add('fa-chevron-down');
+        } else {
+          toggleIcon.classList.remove('fa-chevron-down');
+          toggleIcon.classList.add('fa-chevron-up');
+        }
+      });
+      const globalPauseBtn = document.getElementById('globalPauseBtn');
+      let isGlobalPaused = false;
+
+      globalPauseBtn.addEventListener('click', () => {
+        isGlobalPaused = !isGlobalPaused;
+
+        if (isGlobalPaused) {
+          // Cambiamos el icono a Play visualmente
+          globalPauseBtn.innerHTML = 'Play';
+          // Mandamos la orden al motor 3D
+          if (iframePreview.contentWindow) {
+            iframePreview.contentWindow.postMessage({ type: 'execute', code: 'pause(true);' }, '*');
+          }
+        } else {
+          // Cambiamos el icono a Pause visualmente
+          globalPauseBtn.innerHTML = 'Pause';
+          // Descongelamos el motor
+          if (iframePreview.contentWindow) {
+            iframePreview.contentWindow.postMessage({ type: 'execute', code: 'pause(false);' }, '*');
+          }
+        }
+      });
+    });
+  </script>
 </body>
 
 </html>
