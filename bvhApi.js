@@ -33,7 +33,7 @@ let frameCount = 0;
 let runId = 0;
 
 const SB = {
-  params: { speed: 1.0, pause: false, showSkeleton: true, globalScale: 1.0, rotSpeed: 0.0, reverse: false, color: null, trail: 0, delay: 0 },
+  params: { speed: 1.0, pause: false, showSkeleton: true, globalScale: 1.0, rotSpeed: 0.0, reverse: false, color: null, color2: null, trail: 0, delay: 0 },
 
   grid(size = 400, div = 10) { scene.add(new THREE.GridHelper(size, div)); return SB; },
   cam(x = 0, y = 200, z = 450, lx = 0, ly = 120, lz = 0) { camera.position.set(x, y, z); controls.target.set(lx, ly, lz); return SB; },
@@ -74,7 +74,7 @@ const SB = {
     const url = fileOrUrl.startsWith("http") ? fileOrUrl : "./assets/" + fileOrUrl + ".bvh";
 
     const handle = {
-      _rawFile: fileOrUrl, _url: url, _x: 0, _y: 0, _z: 0, _rotX: 0, _rotY: 0, _rotZ: 0, _scale: null, _showSkeleton: null, _speed: null, _reverse: null, _color: null, _trail: null, _delay: null, _dummy: null,
+      _rawFile: fileOrUrl, _url: url, _x: 0, _y: 0, _z: 0, _rotX: 0, _rotY: 0, _rotZ: 0, _scale: null, _showSkeleton: null, _speed: null, _reverse: null, _color: null, _color2: null, _trail: null, _delay: null, _dummy: null,
 
       _isPlaying: false,
 
@@ -88,7 +88,7 @@ const SB = {
       rotX(r) { this._rotX = r; return this; }, rotY(r) { this._rotY = r; return this; }, rotZ(r) { this._rotZ = r; return this; },
       scale(s) { this._scale = s; return this; }, skeleton(v) { this._showSkeleton = v; return this; },
       speed(v) { this._speed = v; return this; }, reverse(v = true) { this._reverse = v; return this; },
-      color(c) { this._color = c; return this; }, trail(length) { this._trail = length; return this; },
+      color(c1, c2) { this._color = c1; this._color2 = c2; return this; }, trail(length) { this._trail = length; return this; },
       delay(s) { this._delay = s; return this; }, dummy(num) { this._dummy = num; return this; },
 
       play() {
@@ -103,9 +103,9 @@ const SB = {
         nextHandle._isHead = false;
         nextHandle._isPlaying = this._isPlaying;
 
-        // --- NUEVO: HERENCIA DE PROPIEDADES ---
         // El nuevo bailarín hereda el aspecto y configuración del anterior
         nextHandle._color = this._color;
+        nextHandle._color2 = this._color2;
         nextHandle._scale = this._scale;
         nextHandle._speed = this._speed;
         nextHandle._trail = this._trail;
@@ -115,7 +115,6 @@ const SB = {
         nextHandle._rotX = this._rotX;
         nextHandle._rotY = this._rotY;
         nextHandle._rotZ = this._rotZ;
-        // --------------------------------------
 
         this._isChained = true;
         nextHandle._isChained = true;
@@ -149,8 +148,41 @@ const SB = {
 
         const helper = new THREE.SkeletonHelper(root);
         helper.skeleton = result.skeleton;
-        const col = handle._color ?? SB.params.color;
-        if (col) { helper.material.vertexColors = false; helper.material.color.set(col); }
+
+        const col1 = handle._color ?? SB.params.color;
+        const col2 = handle._color2 ?? SB.params.color2;
+
+        if (col1 && !col2) {
+          // Si solo hay un color, pintamos sólido normal
+          helper.material.vertexColors = false;
+          helper.material.color.set(col1);
+        } else {
+          // Si hay dos colores (o ninguno), activamos el DEGRADADO DE LÍNEAS
+          helper.material.vertexColors = true;
+          helper.material.color.set(0xffffff);
+
+          // Si no nos pasan colores, usamos verde y azul por defecto
+          const colorInicio = new THREE.Color(col1 || "#00ffcc"); // Base
+          const colorFin = new THREE.Color(col2 || "#0055ff");    // Punta
+
+          const geometry = helper.geometry;
+          const positions = geometry.attributes.position;
+          const colors = new Float32Array(positions.count * 3);
+
+          for (let i = 0; i < positions.count; i += 2) {
+            // Vértice base
+            colors[i * 3] = colorInicio.r;
+            colors[i * 3 + 1] = colorInicio.g;
+            colors[i * 3 + 2] = colorInicio.b;
+
+            // Vértice punta
+            colors[(i + 1) * 3] = colorFin.r;
+            colors[(i + 1) * 3 + 1] = colorFin.g;
+            colors[(i + 1) * 3 + 2] = colorFin.b;
+          }
+
+          geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        }
 
         if (handle._isChained && !handle._isHead) {
           helper.visible = false;
@@ -163,16 +195,55 @@ const SB = {
         if (handle._dummy !== null && handle._dummy > 0) {
           helper.visible = false;
 
-          const col = handle._color ?? SB.params.color ?? "#ffffff";
+          // Comprobamos los colores exactos
+          const col1 = handle._color ?? SB.params.color;
+          const col2 = handle._color2 ?? SB.params.color2;
+
+          let useGradient = false;
+          let colorInicio, colorFin;
+
+          if (col1 && !col2) {
+            // CASO A: Solo hay un color -> Color sólido
+            useGradient = false;
+            colorInicio = new THREE.Color(col1);
+          } else {
+            // CASO B: Hay dos colores o ninguno -> Degradado
+            useGradient = true;
+            colorInicio = new THREE.Color(col1 || "#00ffcc");
+            colorFin = new THREE.Color(col2 || "#0055ff");
+          }
+
+          // 1. MATERIAL DEL DUMMY
           const dummyMat = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(col),
+            color: useGradient ? 0xffffff : colorInicio, // Blanco si hay degradado, color sólido si no
+            vertexColors: useGradient, // Solo activamos colores por vértice si hay degradado
             roughness: 0.5,
             metalness: 0.2
           });
 
+          // 2. GEOMETRÍAS BASE
           const baseSphereGeom = new THREE.SphereGeometry(1, 12, 12);
           const baseCylGeom = new THREE.CylinderGeometry(0.4, 1, 1, 8);
           baseCylGeom.translate(0, 0.5, 0);
+
+          // 3. MAGIA DEL DEGRADADO (Solo se ejecuta si useGradient es true)
+          if (useGradient) {
+            const cylPos = baseCylGeom.attributes.position;
+            const cylColors = [];
+            for (let i = 0; i < cylPos.count; i++) {
+              const y = cylPos.getY(i);
+              const mixedColor = colorInicio.clone().lerp(colorFin, y);
+              cylColors.push(mixedColor.r, mixedColor.g, mixedColor.b);
+            }
+            baseCylGeom.setAttribute('color', new THREE.Float32BufferAttribute(cylColors, 3));
+
+            const spherePos = baseSphereGeom.attributes.position;
+            const sphereColors = [];
+            for (let i = 0; i < spherePos.count; i++) {
+              sphereColors.push(colorInicio.r, colorInicio.g, colorInicio.b);
+            }
+            baseSphereGeom.setAttribute('color', new THREE.Float32BufferAttribute(sphereColors, 3));
+          }
 
           root.traverse((bone) => {
             if (bone.isBone) {
@@ -312,7 +383,7 @@ const SB = {
 
     // 2. Creamos la nueva locomotora
     let newCurrent = this.bvh(startOrig._rawFile);
-    const keysToCopy = ["_x", "_y", "_z", "_scale", "_rotX", "_rotY", "_rotZ", "_showSkeleton", "_speed", "_reverse", "_color", "_trail", "_delay", "_dummy"];
+    const keysToCopy = ["_x", "_y", "_z", "_scale", "_rotX", "_rotY", "_rotZ", "_showSkeleton", "_speed", "_reverse", "_color", "_color2", "_trail", "_delay", "_dummy"];
 
     keysToCopy.forEach(k => newCurrent[k] = startOrig[k]);
     const newHead = newCurrent; // Guardamos el inicio para devolverlo al final
@@ -345,7 +416,7 @@ const SB = {
     return SB;
   },
   reverse(v = true) { SB.params.reverse = v; return SB; },
-  color(c) { SB.params.color = c; return SB; }, trail(v) { SB.params.trail = v; return SB; }, delay(s) { SB.params.delay = s; return SB; },
+  color(c1, c2) { SB.params.color = c1; SB.params.color2 = c2; return SB; }, trail(v) { SB.params.trail = v; return SB; }, delay(s) { SB.params.delay = s; return SB; },
 
   _tick() {
     const dt = clock.getDelta(); frameCount++;
@@ -410,7 +481,7 @@ window.cam = (x, y, z, lx, ly, lz) => SB.cam(x, y, z, lx, ly, lz); window.bvh = 
 window.speed = (v) => SB.speed(v); window.pause = (v = true) => SB.pause(v);
 window.skeleton = (v = true) => SB.skeleton(v); window.scale = (v) => SB.scale(v);
 window.rot = (v) => SB.rot(v); window.reverse = (v) => SB.reverse(v);
-window.color = (c) => SB.color(c); window.trail = (l) => SB.trail(l);
+window.color = (c1, c2) => SB.color(c1, c2);; window.trail = (l) => SB.trail(l);
 window.delay = (s) => SB.delay(s); window.duplicate = (h) => SB.duplicate(h);
 window.background = (c) => SB.background(c); window.bg = (c) => SB.bg(c);
 
