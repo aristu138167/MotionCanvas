@@ -2,7 +2,7 @@ export const examples = [
   {
     name: "Animación Base (Default)",
     code: `clear();
-grid(400, 10);
+grid(800, 20);
 cam(0, 200, 450, 0, 120, 0);
 
 // Carga de archivos .bvh desde la carpeta assets

@@ -371,14 +371,36 @@
         btn.innerHTML = `<span>${nombre}</span>`;
 
         btn.addEventListener('click', () => {
-          const nuevoCodigo = `clear();\nbg("#050505");\ngrid(800, 20);\nbvh("${nombre}").color("#ffffff").play();`;
-          textareaCode.value = nuevoCodigo;
+          // 1. Leemos el código que haya escrito en el editor
+          let codigoActual = textareaCode.value;
 
-          if (iframePreview.contentWindow) {
-            iframePreview.contentWindow.postMessage({ type: 'execute', code: nuevoCodigo }, '*');
+          // 2. Preparamos la nueva línea
+          let nuevaLinea = `temp = bvh("${nombre}").color("#ffffff").play();`;
+
+          // 3. El buscador inteligente (Regex)
+          let regex = /^temp\s*=\s*bvh\(.*$/m;
+
+          // 4. Lógica de sustitución o añadido
+          if (regex.test(codigoActual)) {
+            // Si ya hay un "temp", lo cambiamos por el nuevo
+            codigoActual = codigoActual.replace(regex, nuevaLinea);
+          } else {
+            // Si no hay un "temp", lo añadimos al final del documento
+            if (codigoActual.trim() !== "") {
+              codigoActual += "\n"; // Salto de línea por limpieza
+            }
+            codigoActual += nuevaLinea;
           }
 
-          // CERRAR BANDEJA AL SELECCIONAR 
+          // 5. Devolvemos el texto actualizado a la caja visualmente
+          textareaCode.value = codigoActual;
+
+          // 6. ¡Lo mandamos a ejecutar!
+          if (iframePreview.contentWindow) {
+            iframePreview.contentWindow.postMessage({ type: 'execute', code: codigoActual }, '*');
+          }
+
+          // (Opcional) CERRAR BANDEJA AL SELECCIONAR 
           // drawer.classList.remove('abierto');
           // toggleIcon.classList.remove('fa-chevron-down');
           // toggleIcon.classList.add('fa-chevron-up');
